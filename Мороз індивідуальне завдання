@@ -1,0 +1,359 @@
+// Варіант 23а. Створення ієрархії класів на тему «Буфет»
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <stdexcept>
+
+using namespace std;
+
+// Клас Блюдо
+class Dish {
+public:
+    string name;
+    double price;
+
+    Dish() : name(""), price(0.0) {}
+    
+    Dish(const string& name, double price)
+        : name(name), price(price) {}
+
+    double getPrice() const {
+        return price;
+    }
+
+    void printMenu() const {
+        cout << "- " << name << " (" << price << "$)" << endl;
+    }
+};
+
+// Клас Людина
+class Person {
+public:
+    string name;
+    string organization;
+    string position;
+    
+    Person() : name(""), organization(""), position("") {}    
+
+    Person(const string& name, const string& organization, const string& position)
+        : name(name), organization(organization), position(position) {}
+};
+
+// Клас Відвідувач (наслідує клас Людина)
+class Visitor : public Person {
+public:
+    double wallet;
+    
+    Visitor() : Person(), wallet(0.0) {}    
+
+    Visitor(const string& name, const string& organization, const string& position, double wallet)
+        : Person(name, organization, position), wallet(wallet) {}
+
+    vector<Dish> select(const vector<Dish>& menu) {
+        vector<Dish> order;
+
+        double totalPrice = 0.0;
+        double e = 0.0001;
+
+        // Надається можливість замовити страву
+        cout << "\n|=======================|" << endl;        
+        cout << "| YOUR BANK IS NOW: " << wallet << "$ |" << endl;
+        cout << "|=======================|" << endl << endl;        
+        cout << "Please enter the numbers of the dishes you want to order (or 0 to finish): ";
+        int choice;
+        cin >> choice;
+
+        while (choice != 0) {
+            if (choice < 1 || choice > menu.size()) {
+                cout << "Invalid choice! Please enter a valid dish number: ";
+                cin >> choice;
+                continue;
+            }
+        
+        // Випадок, якщо грошей у гаманці недостаньо, щоб замовити певну страву
+        if (totalPrice + menu[choice - 1].price > wallet) {
+            
+            // Якщо грошей залишилось меньше, ніж потрібно витратити
+            if (wallet - totalPrice > e) { 
+                cout << "Buddy, you don't have enough mony for " << menu[choice - 1].name << ". You can spend only " << wallet - totalPrice << "$ more." << endl << endl;
+            }
+            
+            // Якщо залишилось 0$
+            else if (wallet - totalPrice < e) {
+                cout << "\nYou don't have any money now. Enter 0 to go on to payment: ";
+                cin >> choice;
+                
+                while (choice != 0) {
+                    cout << "You can't choose any other option. Enter 0 to go on to payment: ";
+                    cin >> choice;
+                    continue;
+                }
+            }
+        }
+        
+        else {
+            order.push_back(menu[choice - 1]);
+            totalPrice += menu[choice - 1].price;
+            cout << menu[choice - 1].name << " added to the order!" << endl;
+            
+            if (wallet > totalPrice) {
+                cout << "You have: " << wallet - totalPrice << "$ more dollars to order something!" << endl << endl;
+            }
+        }
+
+        if (choice != 0 && wallet > totalPrice) {
+            cout << "Would you like to order something more? Then enter the number of the next dish (or 0 to finish): ";
+            cin >> choice;
+            }
+        }
+
+        return order;
+    }
+};
+
+// Клас Працівник Буфета (наслідує клас Людина)
+class CafeteriaWorker : public Person {
+public:
+    CafeteriaWorker() : Person() {}
+
+    CafeteriaWorker(const string& name, const string& organization, const string& position)
+        : Person(name, organization, position) {}
+};
+
+// Клас Кухар (наслідує клас Працівник Буфета)
+class Cook : public CafeteriaWorker {
+public:
+    Cook() : CafeteriaWorker() {}
+
+    Cook(const string& name, const string& organization, const string& position)
+        : CafeteriaWorker(name, organization, position) {}
+
+    void cookDishes(const vector<Dish>& dishes) {
+        cout << "\nChef " << name << " is preparing your order..." << endl;
+        cout << "Chef " << name << " has prepared ";
+        for (size_t i = 0; i < dishes.size(); i++) {
+            if (i != 0) {
+                cout << ", ";
+            }
+            
+            cout << dishes[i].name;
+        }
+        cout << "." << endl;
+    }
+};
+
+// Клас Продавець (наслідує клас Працівник Буфета)
+class Seller : public CafeteriaWorker {
+private:
+    static Cook defaultCook;
+    Cook& cook;
+public:
+    Seller() : CafeteriaWorker(), cook(defaultCook) {}
+
+    Seller(const string& name, const string& organization, const string& position, Cook& cook)
+        : CafeteriaWorker(name, organization, position), cook(cook) {}
+
+    // Бере замовлення
+    void takeOrder(Visitor& visitor, const vector<Dish>& menu) {
+        cout << "|===========================|" << endl;
+        cout << "| WELCOME TO OUR CAFETERIA! |" << endl;
+        cout << "|===========================|" << endl << endl;
+        cout << "Here is our menu: " << endl;
+
+        int counter = 1;
+        for (const auto& dish : menu) {
+            cout << counter++ << ") ";
+            dish.printMenu();
+        }
+
+        vector<Dish> order = visitor.select(menu);
+
+        if (order.empty()) {
+            cout << endl << "Your order is empty. Thank you!" << endl;
+            return;
+        }
+
+        cout << endl << "Your order is:" << endl;
+        double totalPrice = 0;
+        for (const auto& dish : order) {
+            dish.printMenu();
+            totalPrice += dish.getPrice();
+        }
+        
+        cook.cookDishes(order);
+        
+        
+
+        // Сплата замовлення
+        cout << endl << "Total price: " << totalPrice << "$" << endl;
+        cout << "Your current balance: " << visitor.wallet << "$" << endl;
+        
+        double payment = 0.0;
+        cout << "Please pay for your order: ";
+        cin >> payment;
+
+        double e = 0.001; // Число, яке виржає точність
+       
+        // Перевірка введеної суми 
+        if (payment > visitor.wallet) {
+            while (payment > visitor.wallet) {
+                cout << "!!! Sorry, you can't pay the sum, more than " << visitor.wallet <<"$. Please pay for your order: ";
+                cin >> payment;
+                continue;
+                
+                if (payment <= 0) {
+                    throw invalid_argument("Payment must be more than zero");
+                }
+            }
+        }
+        
+        if (payment <= 0) {
+            throw invalid_argument("Payment must be more than zero!");
+        }
+        
+        double rest = totalPrice - payment;
+        if (0 < payment < totalPrice) {
+            while (rest > e) {
+                cout << "Not enough money! You have to pay " << rest << "$ more! Please pay them: ";
+                cin >> payment;
+                
+                // Перевірка введеної суми
+                if (payment > rest) {
+                    while (payment > rest) {
+                        cout << "!!! Sorry, you can't pay the sum, more than " << rest <<"$. Please pay for your order: ";
+                        cin >> payment;
+                    
+                        if (payment <= 0) {
+                            throw invalid_argument("Payment must be more than zero!");
+                        }
+                        
+                        continue;
+                    }
+                }
+                
+                rest -= payment;
+                continue;
+            }
+            if (rest < -e) {
+                double change = rest * -1;
+                cout << "Thanks! Here is your change: " << change << "$" << endl;
+            }
+            else {
+                cout << "Perfect, thanks!" << endl;
+            }
+        }
+        
+        else if (payment > totalPrice) {
+            double change = payment - totalPrice;
+            cout << "Thanks! Here is your change: " << change << "$" << endl;
+        }
+        else if (rest == 0) {
+            cout << "Perfect, thanks!" << endl;
+        }
+
+
+
+        // Можливість залишити чайові
+        if (visitor.wallet - totalPrice < e) {
+                cout << endl << "You can't leave a tip, unfortunately, because you've spent all your money((" << endl;
+        }
+        else {
+            double tip;
+            int tipChoice;
+            
+            cout << "\n|=========================|" << endl;        
+            cout << "| YOUR BANK IS NOW: " << visitor.wallet - totalPrice << "$ |" << endl;
+            cout << "|=========================|" << endl << endl;     
+            cout << "\nWould you like to leave a tip? Enter a number: " << endl << "1 - Leave a tip of 10 percent of your order " << endl << "2 - Enter amount of tip on your own" << endl << "0 - Exit" << endl;
+            cin >> tipChoice;
+            
+            if (tipChoice == 1) {
+                tip = totalPrice * 0.1;
+                
+                if (tip > visitor.wallet - totalPrice) {
+                    cout << "You can't leave unfortunately 10% tip, because you don't have enough money " << endl;                    
+                }
+                else {
+                    cout << "Okay! Your tip is " << tip << "$." << endl;
+                }
+            }
+            else if (tipChoice == 2) {
+                cout << "Enter amount of tip you want to leave: ";
+                cin >> tip;
+                
+                if (tip < 0) {
+                    cout << "Tips cannot be less than zero. Please enter positive number or 0: ";
+                    cin >> tip;
+                }
+                else if (visitor.wallet - totalPrice - tip < e) {
+                    while (visitor.wallet - totalPrice - tip < e) {
+                    cout << "\nYou don't have enough money.You have only " << visitor.wallet - totalPrice << "$ to spend more.\nEnter amount of tip you want to leave: ";
+                    cin >> tip;
+                    }
+                    
+                    if (tip < 0) {
+                    cout << "Tips cannot be less than zero. Please enter positive number or 0: ";
+                    cin >> tip;
+                    }
+                }
+            }
+            else if (tipChoice == 0) {
+                cout << "As you wish" << endl;
+            }
+            else {
+                cout << "Sorry, you can only enter 1, 2 or 0. Please, enter your choice again: ";
+                cin >> tipChoice;
+            }
+            
+            visitor.wallet -= tip;
+        }
+        
+        visitor.wallet -= totalPrice;
+
+        cout << endl << "You paid $" << totalPrice << ". Your remaining balance is $" << visitor.wallet << endl;
+    }
+};
+
+Cook Seller::defaultCook;
+
+int main() {
+    Cook cook("Garry", "Cafeteria", "Cook");
+    Seller seller("Mary", "Cafeteria", "Seller", cook);
+    Visitor visitor("John", "Google", "Programmer", 15.0);
+
+    vector<Dish> menu = {
+        Dish("Water", 0.5),
+        Dish("Coca Cola", 1.25),
+        Dish("Fanta", 1.25),
+        Dish("Ice Tea", 1.15),
+        Dish("Tea", 0.75),
+        Dish("Coffee", 1.0),
+        Dish("Kakao", 0.75),
+        Dish("Omelette", 3.0),
+        Dish("Porridge", 3.0),
+        Dish("Pancakes", 3.5),
+        Dish("Burger", 5.0),
+        Dish("Salad with chicken", 3.5),
+        Dish("Cheesecake", 2.5),
+        Dish("Apple Pie", 2.5),
+        Dish("Vanila Ice Cream", 1.5)
+    };
+    
+    try {
+        seller.takeOrder(visitor, menu);
+    }
+    catch(const exception& ex) {
+        cout << "An error occurred: " << ex.what() << endl;
+    }
+    catch(...) {
+        cout << "An unknown error occurred. Please try again." << endl;
+    }
+
+    cout << "Thank you for visiting our cafeteria!" << endl;
+
+    return 0;
+}
+
+
+
